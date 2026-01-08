@@ -1,24 +1,32 @@
-from sqlmodel import create_engine, Session, SQLModel
+# src/database/database.py
+
+import os
+import logging
+from sqlmodel import SQLModel, create_engine, Session
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 from sqlalchemy import text
-from ..config import settings
 from contextlib import contextmanager
 from typing import Generator
-import logging
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
-# Create the database engine with enhanced configuration
+# =============================
+# DATABASE CONFIGURATION
+# =============================
+DATABASE_URL = os.getenv("DATABASE_URL")  # Railway ka URL
+DATABASE_ECHO = False  # True agar SQL logs dekhne hain
+
+# Create the database engine
 engine = create_engine(
-    settings.database_url,
+    DATABASE_URL,
     poolclass=QueuePool,
-    pool_pre_ping=True,  # Verify connections before use
-    pool_recycle=300,    # Recycle connections after 5 minutes
-    pool_size=20,        # Number of connection objects to maintain
-    max_overflow=30,     # Additional connections beyond pool_size
-    echo=settings.database_echo,  # Enable SQL query logging if configured
+    pool_pre_ping=True,
+    pool_recycle=300,
+    pool_size=20,
+    max_overflow=30,
+    echo=DATABASE_ECHO
 )
 
 # Create a configured "Session" class
@@ -28,12 +36,11 @@ SessionLocal = sessionmaker(
     bind=engine
 )
 
-
+# =============================
+# DATABASE DEPENDENCIES
+# =============================
 def get_db() -> Generator[Session, None, None]:
-    """
-    Dependency to get DB session for FastAPI endpoints.
-    This function is used as a FastAPI dependency to provide database sessions.
-    """
+    """FastAPI dependency to get DB session"""
     db = SessionLocal()
     try:
         yield db
@@ -43,13 +50,9 @@ def get_db() -> Generator[Session, None, None]:
     finally:
         db.close()
 
-
 @contextmanager
 def get_db_session() -> Generator[Session, None, None]:
-    """
-    Context manager to get DB session for non-FastAPI code.
-    This provides a way to get database sessions outside of FastAPI dependency injection.
-    """
+    """Context manager for non-FastAPI DB operations"""
     db = SessionLocal()
     try:
         yield db
@@ -60,25 +63,22 @@ def get_db_session() -> Generator[Session, None, None]:
     finally:
         db.close()
 
-
+# =============================
+# DATABASE TABLES
+# =============================
 def create_db_and_tables():
-    """
-    Create database tables based on SQLModel models.
-    This function should be called on application startup.
-    """
+    """Create database tables on startup"""
     logger.info("Creating database tables...")
     SQLModel.metadata.create_all(bind=engine)
     logger.info("Database tables created successfully")
 
-
-def check_db_connection():
-    """
-    Test database connection by attempting to connect and run a simple query.
-    Returns True if connection is successful, False otherwise.
-    """
+# =============================
+# CONNECTION TEST
+# =============================
+def check_db_connection() -> bool:
+    """Test database connection"""
     try:
         with get_db_session() as db:
-            # Execute a simple query to test the connection
             db.execute(text("SELECT 1"))
         logger.info("Database connection test successful")
         return True
