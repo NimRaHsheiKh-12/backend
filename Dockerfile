@@ -1,30 +1,29 @@
-# Use an official Python runtime as a parent image
+# 1. Use official Python slim image
 FROM python:3.11-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-
-# Set work directory
+# 2. Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        postgresql-client \
+# 3. Install OS dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project requirements
+# 4. Copy requirements.txt
 COPY requirements.txt .
 
-# Install Python dependencies
+# 5. Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project
-COPY . .
+# 6. Copy project files
+COPY ./src ./src
 
-# Expose port
+# 7. Set environment variable for FastAPI
+ENV PYTHONUNBUFFERED=1
+
+# 8. Expose port
 EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "backend.src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 9. Start command
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
