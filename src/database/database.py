@@ -6,8 +6,13 @@ from sqlmodel import SQLModel, create_engine, Session
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 from contextlib import contextmanager
 from typing import Generator
+from dotenv import load_dotenv  # << Add this
+
+# Load environment variables from .env
+load_dotenv()
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -15,19 +20,38 @@ logger = logging.getLogger(__name__)
 # =============================
 # DATABASE CONFIGURATION
 # =============================
-DATABASE_URL = os.getenv("DATABASE_URL")  # Railway ka URL
-DATABASE_ECHO = False  # True agar SQL logs dekhne hain
+DATABASE_URL = os.getenv("DATABASE_URL")  # Railway or other remote DB URL
+DATABASE_ECHO = os.getenv("DATABASE_ECHO", "False") == "True"
 
-# Create the database engine
-engine = create_engine(
-    DATABASE_URL,
-    poolclass=QueuePool,
-    pool_pre_ping=True,
-    pool_recycle=300,
-    pool_size=20,
-    max_overflow=30,
-    echo=DATABASE_ECHO
-)
+# Helper to create an engine with consistent options
+def _make_engine(url: str):
+    return create_engine(
+        url,
+        poolclass=QueuePool,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        pool_size=20,
+        max_overflow=30,
+        echo=DATABASE_ECHO,
+    )
+
+# Try to use DATABASE_URL first; if it's missing or unreachable, fall back to SQLite
+engine = None
+if DATABASE_URL:
+    try:
+        tmp_engine = _make_engine(DATABASE_URL)
+        # quick connectivity test
+        with tmp_engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        engine = tmp_engine
+        logger.info("Using DATABASE_URL from environment")
+    except Exception as e:
+        logger.error(f"Cannot connect to DATABASE_URL: {e}. Falling back to SQLite.")
+
+if engine is None:
+    sqlite_url = os.getenv("SQLITE_URL", "sqlite:///./dev.db")
+    engine = _make_engine(sqlite_url)
+    logger.info(f"Using SQLite database at {sqlite_url}")
 
 # Create a configured "Session" class
 SessionLocal = sessionmaker(

@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = Field(default="/api/v1", description="API version prefix")
 
     # CORS settings
-    backend_cors_origins: str = Field(default="*", description="Comma-separated list of allowed origins")
+    backend_cors_origins: str = Field(default="http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,http://127.0.0.1:8080,http://localhost:8000,http://127.0.0.1:8000", description="Comma-separated list of allowed origins")
 
     # Security settings
     allowed_hosts: str = Field(default="*", description="Comma-separated list of allowed hosts")

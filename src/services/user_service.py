@@ -68,6 +68,22 @@ class UserService:
         )
 
     @staticmethod
+    def get_user_by_id(db: Session, user_id: UUID) -> Optional[User]:
+        """
+        Get a user by their ID.
+
+        Args:
+            db: Database session
+            user_id: User ID to search for
+
+        Returns:
+            User object if found, None otherwise
+        """
+        statement = select(User).where(User.id == user_id)
+        result = db.execute(statement)
+        return result.scalar_one_or_none()
+
+    @staticmethod
     def get_user_by_email(db: Session, email: str) -> Optional[User]:
         """
         Get a user by their email address.
